@@ -9,6 +9,7 @@ description = "A production-oriented API platform gateway"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115,<1.0",
+    "pydantic-settings>=2.6,<3.0",
 ]
 
 [project.optional-dependencies]

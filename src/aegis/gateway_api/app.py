@@ -2,9 +2,13 @@
 
 from fastapi import FastAPI
 
+from aegis.config import Settings
 
-def create_app() -> FastAPI:
+
+def create_app(settings: Settings | None = None) -> FastAPI:
     """Create the minimal Aegis gateway application."""
+    if settings is None:
+        Settings()
     app = FastAPI(title="Aegis API Platform")
 
     @app.get("/")
