@@ -1,0 +1,1 @@
+"""WebSocket usage-gateway boundary."""
