@@ -2,6 +2,7 @@
 
 import socket
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import SecretStr, ValidationError
@@ -14,7 +15,6 @@ from aegis.config import (
     Settings,
     StorageBackend,
 )
-
 
 PRODUCTION_VALUES: dict[str, object] = {
     "environment": "production",
@@ -44,7 +44,7 @@ def isolate_settings_sources(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(variable, raising=False)
 
 
-def make_settings(**overrides: object) -> Settings:
+def make_settings(**overrides: Any) -> Settings:
     return Settings(_env_file=None, **overrides)
 
 
@@ -59,9 +59,7 @@ def test_safe_local_defaults() -> None:
         "postgresql+psycopg://aegis_local:"
     )
     assert settings.redis_url.get_secret_value() == "redis://localhost:6379/0"
-    assert settings.celery_broker_url.get_secret_value() == (
-        "redis://localhost:6379/1"
-    )
+    assert settings.celery_broker_url.get_secret_value() == ("redis://localhost:6379/1")
     assert settings.worker_queue_name == "aegis-usage"
     assert settings.worker_concurrency == 2
     assert settings.storage_backend is StorageBackend.LOCAL
@@ -204,9 +202,12 @@ def test_invalid_database_urls_are_rejected(database_url: str) -> None:
 def test_accepted_redis_schemes(field_name: str, scheme: str) -> None:
     url = f"{scheme}://user:pass@redis.internal/0"
 
-    assert make_settings(**{field_name: url}).__getattribute__(
-        field_name
-    ).get_secret_value() == url
+    assert (
+        make_settings(**{field_name: url})
+        .__getattribute__(field_name)
+        .get_secret_value()
+        == url
+    )
 
 
 @pytest.mark.parametrize("field_name", ("redis_url", "celery_broker_url"))
@@ -221,9 +222,7 @@ def test_invalid_redis_urls_are_rejected(field_name: str, url: str) -> None:
     "field_name",
     ("database_url", "redis_url", "celery_broker_url"),
 )
-def test_production_rejects_literal_loopback_hosts(
-    field_name: str, host: str
-) -> None:
+def test_production_rejects_literal_loopback_hosts(field_name: str, host: str) -> None:
     values = dict(PRODUCTION_VALUES)
     scheme = "postgresql" if field_name == "database_url" else "redis"
     path = "aegis" if field_name == "database_url" else "0"
@@ -265,9 +264,10 @@ def test_secret_value_is_redacted_from_validation_errors() -> None:
 
 def test_settings_are_frozen() -> None:
     settings = make_settings()
+    field_name = "log_level"
 
     with pytest.raises(ValidationError):
-        settings.log_level = LogLevel.ERROR
+        setattr(settings, field_name, LogLevel.ERROR)
 
 
 def test_settings_instances_are_independent() -> None:
