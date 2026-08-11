@@ -1,0 +1,137 @@
+services:
+  postgres:
+    image: postgres:16.14-alpine
+    environment:
+      POSTGRES_USER: gateway_local
+      POSTGRES_PASSWORD: gateway_local
+      POSTGRES_DB: gateway
+    ports:
+      - "127.0.0.1:${GATEWAY_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - gateway-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway_local -d gateway"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+    restart: "no"
+
+  redis:
+    image: redis:7.4.10-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${GATEWAY_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 2s
+    restart: "no"
+
+  api:
+    profiles: ["processes"]
+    build:
+      context: .
+    image: gateway-local:task-1.5
+    command:
+      - python
+      - -m
+      - uvicorn
+      - gateway.gateway_api.app:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment:
+      GATEWAY_PROCESS_NAME: gateway-api
+      GATEWAY_ENVIRONMENT: local
+      GATEWAY_DATABASE_URL: postgresql+psycopg://gateway_local:gateway_local@postgres:5432/gateway
+      GATEWAY_REDIS_URL: redis://redis:6379/0
+      GATEWAY_CELERY_BROKER_URL: redis://redis:6379/1
+      GATEWAY_STORAGE_ROOT: /tmp/gateway-storage
+    ports:
+      - "127.0.0.1:${GATEWAY_API_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen(
+          "http://127.0.0.1:8000/health/live", timeout=2).read()
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 3s
+    init: true
+    stop_grace_period: 5s
+    restart: "no"
+
+  usage-worker:
+    profiles: ["processes"]
+    build:
+      context: .
+    image: gateway-local:task-1.5
+    command:
+      - python
+      - -m
+      - gateway.usage_aggregator.process
+    environment:
+      GATEWAY_PROCESS_NAME: usage-worker
+      GATEWAY_ENVIRONMENT: local
+      GATEWAY_DATABASE_URL: postgresql+psycopg://gateway_local:gateway_local@postgres:5432/gateway
+      GATEWAY_REDIS_URL: redis://redis:6379/0
+      GATEWAY_CELERY_BROKER_URL: redis://redis:6379/1
+      GATEWAY_STORAGE_ROOT: /tmp/gateway-storage
+    init: true
+    stop_grace_period: 5s
+    restart: "no"
+
+  ws-usage-gateway:
+    profiles: ["processes"]
+    build:
+      context: .
+    image: gateway-local:task-1.5
+    command:
+      - python
+      - -m
+      - uvicorn
+      - gateway.ws_usage_gateway.app:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8001"
+    environment:
+      GATEWAY_PROCESS_NAME: ws-usage-gateway
+      GATEWAY_ENVIRONMENT: local
+      GATEWAY_DATABASE_URL: postgresql+psycopg://gateway_local:gateway_local@postgres:5432/gateway
+      GATEWAY_REDIS_URL: redis://redis:6379/0
+      GATEWAY_CELERY_BROKER_URL: redis://redis:6379/1
+      GATEWAY_STORAGE_ROOT: /tmp/gateway-storage
+    ports:
+      - "127.0.0.1:${GATEWAY_WS_PORT:-8001}:8001"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen(
+          "http://127.0.0.1:8001/health/live", timeout=2).read()
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 3s
+    init: true
+    stop_grace_period: 5s
+    restart: "no"
+
+volumes:
+  gateway-postgres-data:
+    name: gateway-postgres-data
