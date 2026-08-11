@@ -8,8 +8,11 @@ version = "0.1.0"
 description = "A production-oriented API platform gateway"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.18.5,<2.0",
     "fastapi>=0.115,<1.0",
     "pydantic-settings>=2.6,<3.0",
+    "psycopg[binary]>=3.3.4,<4.0",
+    "SQLAlchemy>=2.0.51,<2.1",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +34,11 @@ addopts = [
     "--strict-config",
     "--strict-markers",
     "-ra",
+    "-m",
+    "not postgresql",
+]
+markers = [
+    "postgresql: requires an explicitly provisioned PostgreSQL database",
 ]
 
 [tool.coverage.run]
