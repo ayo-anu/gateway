@@ -1,4 +1,4 @@
-"""Tests for authoritative Aegis process configuration."""
+"""Tests for authoritative Gateway process configuration."""
 
 import socket
 from pathlib import Path
@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from aegis.config import (
+from gateway.config import (
     LogFormat,
     LogLevel,
     ProcessName,
@@ -18,23 +18,23 @@ from aegis.config import (
 
 PRODUCTION_VALUES: dict[str, object] = {
     "environment": "production",
-    "database_url": "postgresql+psycopg://user:database-canary@db.internal/aegis",
+    "database_url": "postgresql+psycopg://user:database-canary@db.internal/gateway",
     "redis_url": "rediss://user:redis-canary@redis.internal/0",
     "celery_broker_url": "rediss://user:broker-canary@broker.internal/1",
-    "storage_root": "/var/lib/aegis/storage",
+    "storage_root": "/var/lib/gateway/storage",
 }
 KNOWN_ENVIRONMENT_VARIABLES = (
-    "AEGIS_PROCESS_NAME",
-    "AEGIS_ENVIRONMENT",
-    "AEGIS_LOG_LEVEL",
-    "AEGIS_LOG_FORMAT",
-    "AEGIS_DATABASE_URL",
-    "AEGIS_REDIS_URL",
-    "AEGIS_CELERY_BROKER_URL",
-    "AEGIS_WORKER_QUEUE_NAME",
-    "AEGIS_WORKER_CONCURRENCY",
-    "AEGIS_STORAGE_BACKEND",
-    "AEGIS_STORAGE_ROOT",
+    "GATEWAY_PROCESS_NAME",
+    "GATEWAY_ENVIRONMENT",
+    "GATEWAY_LOG_LEVEL",
+    "GATEWAY_LOG_FORMAT",
+    "GATEWAY_DATABASE_URL",
+    "GATEWAY_REDIS_URL",
+    "GATEWAY_CELERY_BROKER_URL",
+    "GATEWAY_WORKER_QUEUE_NAME",
+    "GATEWAY_WORKER_CONCURRENCY",
+    "GATEWAY_STORAGE_BACKEND",
+    "GATEWAY_STORAGE_ROOT",
 )
 
 
@@ -56,11 +56,11 @@ def test_safe_local_defaults() -> None:
     assert settings.log_level is LogLevel.INFO
     assert settings.log_format is LogFormat.TEXT
     assert settings.database_url.get_secret_value().startswith(
-        "postgresql+psycopg://aegis_local:"
+        "postgresql+psycopg://gateway_local:"
     )
     assert settings.redis_url.get_secret_value() == "redis://localhost:6379/0"
     assert settings.celery_broker_url.get_secret_value() == ("redis://localhost:6379/1")
-    assert settings.worker_queue_name == "aegis-usage"
+    assert settings.worker_queue_name == "gateway-usage"
     assert settings.worker_concurrency == 2
     assert settings.storage_backend is StorageBackend.LOCAL
     assert settings.storage_root == Path(".local/storage")
@@ -76,17 +76,17 @@ def test_safe_test_defaults() -> None:
 def test_explicit_environment_overrides_are_typed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("AEGIS_PROCESS_NAME", "usage-worker")
-    monkeypatch.setenv("AEGIS_ENVIRONMENT", "test")
-    monkeypatch.setenv("AEGIS_LOG_LEVEL", "DEBUG")
-    monkeypatch.setenv("AEGIS_LOG_FORMAT", "json")
-    monkeypatch.setenv("AEGIS_DATABASE_URL", "postgresql://user:pass@db/aegis")
-    monkeypatch.setenv("AEGIS_REDIS_URL", "rediss://user:pass@redis/0")
-    monkeypatch.setenv("AEGIS_CELERY_BROKER_URL", "redis://broker/1")
-    monkeypatch.setenv("AEGIS_WORKER_QUEUE_NAME", "usage.events")
-    monkeypatch.setenv("AEGIS_WORKER_CONCURRENCY", "4")
-    monkeypatch.setenv("AEGIS_STORAGE_BACKEND", "local")
-    monkeypatch.setenv("AEGIS_STORAGE_ROOT", "/tmp/aegis-test-storage")
+    monkeypatch.setenv("GATEWAY_PROCESS_NAME", "usage-worker")
+    monkeypatch.setenv("GATEWAY_ENVIRONMENT", "test")
+    monkeypatch.setenv("GATEWAY_LOG_LEVEL", "DEBUG")
+    monkeypatch.setenv("GATEWAY_LOG_FORMAT", "json")
+    monkeypatch.setenv("GATEWAY_DATABASE_URL", "postgresql://user:pass@db/gateway")
+    monkeypatch.setenv("GATEWAY_REDIS_URL", "rediss://user:pass@redis/0")
+    monkeypatch.setenv("GATEWAY_CELERY_BROKER_URL", "redis://broker/1")
+    monkeypatch.setenv("GATEWAY_WORKER_QUEUE_NAME", "usage.events")
+    monkeypatch.setenv("GATEWAY_WORKER_CONCURRENCY", "4")
+    monkeypatch.setenv("GATEWAY_STORAGE_BACKEND", "local")
+    monkeypatch.setenv("GATEWAY_STORAGE_ROOT", "/tmp/gateway-test-storage")
 
     settings = Settings(_env_file=None)
 
@@ -96,7 +96,7 @@ def test_explicit_environment_overrides_are_typed(
     assert settings.log_format is LogFormat.JSON
     assert isinstance(settings.database_url, SecretStr)
     assert settings.worker_concurrency == 4
-    assert settings.storage_root == Path("/tmp/aegis-test-storage")
+    assert settings.storage_root == Path("/tmp/gateway-test-storage")
 
 
 @pytest.mark.parametrize("environment", ("local", "test", "production"))
@@ -152,29 +152,29 @@ def test_production_succeeds_when_all_required_values_are_explicit() -> None:
 def test_production_values_can_be_supplied_entirely_by_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("AEGIS_ENVIRONMENT", "production")
+    monkeypatch.setenv("GATEWAY_ENVIRONMENT", "production")
     monkeypatch.setenv(
-        "AEGIS_DATABASE_URL",
-        "postgresql+psycopg://user:pass@db.internal/aegis",
+        "GATEWAY_DATABASE_URL",
+        "postgresql+psycopg://user:pass@db.internal/gateway",
     )
-    monkeypatch.setenv("AEGIS_REDIS_URL", "rediss://user:pass@redis.internal/0")
+    monkeypatch.setenv("GATEWAY_REDIS_URL", "rediss://user:pass@redis.internal/0")
     monkeypatch.setenv(
-        "AEGIS_CELERY_BROKER_URL",
+        "GATEWAY_CELERY_BROKER_URL",
         "rediss://user:pass@broker.internal/1",
     )
-    monkeypatch.setenv("AEGIS_STORAGE_ROOT", "/var/lib/aegis/storage")
+    monkeypatch.setenv("GATEWAY_STORAGE_ROOT", "/var/lib/gateway/storage")
 
     settings = Settings(_env_file=None)
 
     assert settings.environment is RuntimeEnvironment.PRODUCTION
-    assert settings.storage_root == Path("/var/lib/aegis/storage")
+    assert settings.storage_root == Path("/var/lib/gateway/storage")
 
 
 @pytest.mark.parametrize(
     "database_url",
     (
-        "postgresql://user:pass@db.internal/aegis",
-        "postgresql+psycopg://user:pass@db.internal/aegis",
+        "postgresql://user:pass@db.internal/gateway",
+        "postgresql+psycopg://user:pass@db.internal/gateway",
     ),
 )
 def test_accepted_database_schemes(database_url: str) -> None:
@@ -186,8 +186,8 @@ def test_accepted_database_schemes(database_url: str) -> None:
 @pytest.mark.parametrize(
     "database_url",
     (
-        "mysql://user:pass@db.internal/aegis",
-        "postgresql+asyncpg://user:pass@db.internal/aegis",
+        "mysql://user:pass@db.internal/gateway",
+        "postgresql+asyncpg://user:pass@db.internal/gateway",
         "postgresql://db.internal",
         "not-a-url",
     ),
@@ -225,7 +225,7 @@ def test_invalid_redis_urls_are_rejected(field_name: str, url: str) -> None:
 def test_production_rejects_literal_loopback_hosts(field_name: str, host: str) -> None:
     values = dict(PRODUCTION_VALUES)
     scheme = "postgresql" if field_name == "database_url" else "redis"
-    path = "aegis" if field_name == "database_url" else "0"
+    path = "gateway" if field_name == "database_url" else "0"
     values[field_name] = f"{scheme}://user:canary@{host}/{path}"
 
     with pytest.raises(ValidationError):
@@ -257,7 +257,7 @@ def test_secret_value_is_redacted_from_validation_errors() -> None:
     canary = "validation-secret-canary"
 
     with pytest.raises(ValidationError) as error:
-        make_settings(database_url=f"mysql://user:{canary}@db.internal/aegis")
+        make_settings(database_url=f"mysql://user:{canary}@db.internal/gateway")
 
     assert canary not in str(error.value)
 
@@ -281,7 +281,7 @@ def test_settings_instances_are_independent() -> None:
 
 def test_explicit_dotenv_source_is_supported(tmp_path: Path) -> None:
     dotenv = tmp_path / ".env"
-    dotenv.write_text("AEGIS_LOG_LEVEL=WARNING\n", encoding="utf-8")
+    dotenv.write_text("GATEWAY_LOG_LEVEL=WARNING\n", encoding="utf-8")
 
     settings = Settings(_env_file=dotenv)
 

@@ -1,4 +1,4 @@
-"""Validated process configuration for Aegis application bootstrap."""
+"""Validated process configuration for Gateway application bootstrap."""
 
 from collections.abc import Mapping
 from enum import StrEnum
@@ -17,7 +17,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ProcessName(StrEnum):
-    """Supported Aegis process identities."""
+    """Supported Gateway process identities."""
 
     GATEWAY_API = "gateway-api"
     USAGE_WORKER = "usage-worker"
@@ -57,7 +57,7 @@ class StorageBackend(StrEnum):
 
 _LOCAL_INFRASTRUCTURE_DEFAULTS: dict[str, str | Path] = {
     "database_url": (
-        "postgresql+psycopg://aegis_local:aegis_local@localhost:5432/aegis"
+        "postgresql+psycopg://gateway_local:gateway_local@localhost:5432/gateway"
     ),
     "redis_url": "redis://localhost:6379/0",
     "celery_broker_url": "redis://localhost:6379/1",
@@ -84,10 +84,10 @@ def _is_loopback_host(host: str) -> bool:
 
 
 class Settings(BaseSettings):
-    """Single authoritative, immutable Aegis settings contract."""
+    """Single authoritative, immutable Gateway settings contract."""
 
     model_config = SettingsConfigDict(
-        env_prefix="AEGIS_",
+        env_prefix="GATEWAY_",
         env_file=".env",
         env_file_encoding="utf-8",
         extra="forbid",
@@ -104,7 +104,7 @@ class Settings(BaseSettings):
     redis_url: SecretStr
     celery_broker_url: SecretStr
     worker_queue_name: str = Field(
-        default="aegis-usage",
+        default="gateway-usage",
         pattern=r"^[a-z0-9][a-z0-9._-]{0,62}$",
     )
     worker_concurrency: int = Field(default=2, ge=1, le=32)

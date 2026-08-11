@@ -8,8 +8,8 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
 from pydantic import ValidationError
 
-from aegis.config import Settings
-from aegis.gateway_api.app import create_app
+from gateway.config import Settings
+from gateway.gateway_api.app import create_app
 
 
 def get(path: str, settings: Settings | None = None) -> Response:
@@ -35,7 +35,7 @@ def test_create_app_returns_distinct_fastapi_instances() -> None:
 def test_create_app_constructs_settings_for_each_factory_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import aegis.gateway_api.app as app_module
+    import gateway.gateway_api.app as app_module
 
     settings = Settings(_env_file=None)
     calls = 0
@@ -57,7 +57,7 @@ def test_invalid_startup_configuration_prevents_app_creation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AEGIS_ENVIRONMENT", "production")
+    monkeypatch.setenv("GATEWAY_ENVIRONMENT", "production")
 
     with pytest.raises(ValidationError):
         create_app()
@@ -67,17 +67,17 @@ def test_valid_production_configuration_allows_app_creation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AEGIS_ENVIRONMENT", "production")
+    monkeypatch.setenv("GATEWAY_ENVIRONMENT", "production")
     monkeypatch.setenv(
-        "AEGIS_DATABASE_URL",
-        "postgresql+psycopg://user:pass@db.internal/aegis",
+        "GATEWAY_DATABASE_URL",
+        "postgresql+psycopg://user:pass@db.internal/gateway",
     )
-    monkeypatch.setenv("AEGIS_REDIS_URL", "rediss://user:pass@redis.internal/0")
+    monkeypatch.setenv("GATEWAY_REDIS_URL", "rediss://user:pass@redis.internal/0")
     monkeypatch.setenv(
-        "AEGIS_CELERY_BROKER_URL",
+        "GATEWAY_CELERY_BROKER_URL",
         "rediss://user:pass@broker.internal/1",
     )
-    monkeypatch.setenv("AEGIS_STORAGE_ROOT", "/var/lib/aegis/storage")
+    monkeypatch.setenv("GATEWAY_STORAGE_ROOT", "/var/lib/gateway/storage")
 
     app = create_app()
 
@@ -89,7 +89,7 @@ def test_root_is_inert_and_deterministic() -> None:
     response = get("/", Settings(_env_file=None))
 
     assert response.status_code == 200
-    assert response.json() == {"name": "Aegis API Platform", "status": "ok"}
+    assert response.json() == {"name": "Gateway", "status": "ok"}
 
 
 def test_liveness_is_inert_and_deterministic() -> None:

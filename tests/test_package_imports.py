@@ -8,12 +8,12 @@ import pytest
 @pytest.mark.parametrize(
     "module_name",
     (
-        "aegis",
-        "aegis.gateway_api",
-        "aegis.key_management",
-        "aegis.usage_aggregator",
-        "aegis.ws_usage_gateway",
-        "aegis.infrastructure",
+        "gateway",
+        "gateway.gateway_api",
+        "gateway.key_management",
+        "gateway.usage_aggregator",
+        "gateway.ws_usage_gateway",
+        "gateway.infrastructure",
     ),
 )
 def test_required_package_is_importable(module_name: str) -> None:
@@ -21,6 +21,6 @@ def test_required_package_is_importable(module_name: str) -> None:
 
 
 def test_application_factory_is_importable() -> None:
-    module = import_module("aegis.gateway_api.app")
+    module = import_module("gateway.gateway_api.app")
 
     assert callable(module.create_app)
